@@ -1,9 +1,10 @@
 [package]
 name = "mistral-api"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "Rust client library for Mistral API"
+license = "Apache-2.0"
+license-file = "LICENSE"
 
 [dependencies]
 reqwest = { version = "~0.11.23", features = ["json"] }
