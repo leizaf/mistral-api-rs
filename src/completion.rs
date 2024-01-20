@@ -1,6 +1,9 @@
+use crate::client::Endpoint;
+use reqwest::{Client, Request};
 use serde::{Deserialize, Serialize};
+use url::Url;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MessageRole {
     System,
@@ -8,13 +11,45 @@ pub enum MessageRole {
     Assistant,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Message {
-    role: MessageRole,
-    content: String,
+    pub role: MessageRole,
+    pub content: String,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FinishReason {
+    Stop,
+    Length,
+    ModelLength,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Choice {
+    pub index: i32,
+    pub message: Message,
+    pub finish_reason: FinishReason,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Usage {
+    pub prompt_tokens: i32,
+    pub completion_tokens: i32,
+    pub total_tokens: i32,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ChatCompletionResponse {
+    pub id: String,
+    pub object: String,
+    pub created: i64,
+    pub model: String,
+    pub choices: Vec<Choice>,
+    pub usage: Usage,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ChatCompletion {
     /// ID of the model to use. You can use the List Available Models API to see all of your available models, or see our Model overview for model descriptions.
     model: String,
@@ -31,6 +66,7 @@ pub struct ChatCompletion {
     /// The maximum number of tokens to generate in the completion.
     ///
     /// The token count of your prompt plus max_tokens cannot exceed the model's context length.
+    #[serde(skip_serializing_if = "Option::is_none")]
     max_tokens: Option<i32>,
     /// Whether to stream back partial progress. If set, tokens will be sent as data-only server-sent events as they become available, with the stream terminated by a data: [DONE] message. Otherwise, the server will hold the request open until the timeout or until completion, with the response containing the full result as JSON.
     stream: bool,
@@ -51,6 +87,28 @@ impl ChatCompletion {
 
     pub fn messages_mut(&mut self) -> &mut Vec<Message> {
         &mut self.messages
+    }
+
+    pub fn append_message(&mut self, message: Message) {
+        self.messages.push(message);
+    }
+}
+
+impl Endpoint for ChatCompletion {
+    type Response = ChatCompletionResponse;
+
+    fn request(&self, client: &Client) -> Request {
+        let url = Url::parse("https://api.mistral.ai/v1/chat/completions").unwrap();
+        client
+            .post(url)
+            .header("Content-Type", "application/json")
+            .header(
+                "Authorization",
+                format!("Bearer {}", std::env::var("MISTRAL_API_KEY").unwrap()),
+            )
+            .json(self)
+            .build()
+            .unwrap()
     }
 }
 
